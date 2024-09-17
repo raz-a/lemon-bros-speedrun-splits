@@ -67,6 +67,26 @@ local STARCOUNTS = {
     120
 }
 
+local PLAYER_INTERACTIONS = {
+    [0] = "Non-Solid",
+    [1] = "Solid",
+    [2] = "Friendly-Fire"
+}
+
+local KNOCKBACK_STRENGTH = {
+    [10] = "Weak",
+    [25] = "Normal",
+    [60] = "Too Much"
+}
+
+local OFF_ON = {
+    [0] = "Off",
+    [1] = "On"
+}
+
+local REQUIRED_PLAYER_INTERACTION = PLAYER_INTERACTIONS[1]
+local REQUIRED_KNOCKBACK_STRENGTH = KNOCKBACK_STRENGTH[25]
+
 -- Functions --
 
 function frames_to_time_string(frames)
@@ -311,45 +331,84 @@ function hud_top_render()
     end
 end
 
-function hud_center_render()
-    if gGlobalSyncTable.startTimer <= 0 then
-        return
-    end
-
-    -- TODO: Need to add countdown render and settings render.
-    print(gGlobalSyncTable.splitCategory.playerCount .. " " .. 
-          gGlobalSyncTable.splitCategory.nonStop .. " " .. 
-          gGlobalSyncTable.splitCategory.starCount)
-
-    print("Player Interaction: " .. gServerSettings.playerInteractions) -- Needs to be Solid
-    print("Knockback Strength: " .. gServerSettings.playerKnockbackStrength) -- Needs to be Normal
-    print("Bouncy Level Bounds: " .. gServerSettings.bouncyLevelBounds) -- Needs to be Off
-    print("Skip Intro Cutscene: " .. gServerSettings.skipIntro) -- can be Off or On
-    print("Pause Anywhere: " .. gServerSettings.pauseAnywhere) -- can be Off or On
-    print("Bubble on death: " .. gServerSettings.bubbleDeath) -- can be Off or On 
-    print("Nametags: " .. gServerSettings.nametags) -- can be Off or On
-
-    -- set text
-    local text = tostring(math.floor(gGlobalSyncTable.startTimer))
-
-    -- set scale
-    local scale = 1
-
-    -- get width of screen and text
-    local screenWidth = djui_hud_get_screen_width()
-    local screenHeight = djui_hud_get_screen_height()
-    local width = djui_hud_measure_text(text) * scale
-    local height = 32 * scale
-
-    local x = (screenWidth - width) / 2.0
-    local y = (screenHeight - height) / 2.0
-
-    -- render
-    djui_hud_set_color(0, 0, 0, 128)
-    djui_hud_render_rect(x - 6 * scale, y, width + 12 * scale, height)
+function render_setting(label, result, requiredResult, x, y, scale)
+    local textHeight = scale * 32
 
     djui_hud_set_color(255, 255, 255, 255)
-    djui_hud_print_text(text, x, y, scale)
+    djui_hud_print_text(label, x, y, scale)
+
+    if (requiredResult == nil or result == requiredResult) then
+        djui_hud_set_color(0, 255, 0, 255)
+    else
+        djui_hud_set_color(255, 0, 0, 255)
+    end
+
+    djui_hud_print_text(result, x + (djui_hud_measure_text(label) * scale), y, scale)
+    return y + textHeight
+end
+
+function hud_center_render()
+    local renderSettings = not gGlobalSyncTable.runInProgress or gGlobalSyncTable.startTimer > 0
+    local renderCountDown = gGlobalSyncTable.startTimer > 0
+
+    if renderSettings then
+        local scale = 0.25
+        local textHeight = scale * 32
+
+        local x = 6;
+        local y = djui_hud_get_screen_height() / 3.0
+        local borderSize = 6 * scale
+
+        local lines = "----------------------------"
+
+        djui_hud_set_color(0, 0, 0, 128)
+        djui_hud_render_rect(x - borderSize, y - borderSize, (djui_hud_measure_text(lines) * scale) + (2 * borderSize),
+            (textHeight * 8) + (2 * borderSize))
+
+        local category = "    * " .. gGlobalSyncTable.splitCategory.playerCount .. " " ..
+            gGlobalSyncTable.splitCategory.nonStop .. " " ..
+            gGlobalSyncTable.splitCategory.starCount .. " star *"
+
+        djui_hud_set_color(255, 255, 255, 255)
+        djui_hud_print_text(category, x, y, scale)
+        y = y + textHeight / 2.0
+        djui_hud_print_text(lines, x, y, scale)
+        y = y + textHeight / 1.5
+
+        y = render_setting("Player Interaction: ", PLAYER_INTERACTIONS[gServerSettings.playerInteractions],
+            REQUIRED_PLAYER_INTERACTION, x, y, scale)
+        y = render_setting("Knockback Strength: ", KNOCKBACK_STRENGTH[gServerSettings.playerKnockbackStrength],
+            REQUIRED_KNOCKBACK_STRENGTH, x, y, scale)
+        y = render_setting("Bouncy Level Bounds: ", OFF_ON[gServerSettings.bouncyLevelBounds], "Off", x, y, scale)
+        y = render_setting("Skip Intro Cutscene: ", OFF_ON[gServerSettings.skipIntro], nil, x, y, scale)
+        y = render_setting("Pause Anywhere: ", OFF_ON[gServerSettings.pauseAnywhere], nil, x, y, scale)
+        y = render_setting("Bubble on death: ", OFF_ON[gServerSettings.bubbleDeath], nil, x, y, scale)
+        y = render_setting("Nametags: ", OFF_ON[gServerSettings.nametags], nil, x, y, scale)
+    end
+
+    if renderCountDown then
+        -- set text
+        local text = tostring(math.floor(gGlobalSyncTable.startTimer))
+
+        -- set scale
+        local scale = 1
+
+        -- get width of screen and text
+        local screenWidth = djui_hud_get_screen_width()
+        local screenHeight = djui_hud_get_screen_height()
+        local width = djui_hud_measure_text(text) * scale
+        local height = 32 * scale
+
+        local x = (screenWidth - width) / 2.0
+        local y = (screenHeight - height) / 2.0
+
+        -- render
+        djui_hud_set_color(0, 0, 0, 128)
+        djui_hud_render_rect(x - 6 * scale, y, width + 12 * scale, height)
+
+        djui_hud_set_color(255, 255, 255, 255)
+        djui_hud_print_text(text, x, y, scale)
+    end
 end
 
 function hud_bottom_render()
